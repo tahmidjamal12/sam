@@ -1,0 +1,18 @@
+name: sam_gradio
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+    - numpy
+    - torch
+    - torchvision
+    - opencv-python
+    - matplotlib
+    - h5py
+    - gradio
+    - segment-anything
+    - requests
+    - tqdm
