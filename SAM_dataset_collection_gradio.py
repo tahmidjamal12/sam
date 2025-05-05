@@ -101,6 +101,19 @@ def make_save_fn(mask_idx):
         return f"Saved segment {seg_id}.", session, gallery
     return save_fn
 
+# Delete a saved mask segment
+def delete_segment(segment_id, session):
+    if not session['annotations']:
+        return "No segments to delete.", session, []
+    
+    # Find and remove the segment with matching ID
+    session['annotations'] = [ann for ann in session['annotations'] if ann['segment_id'] != segment_id]
+    
+    # Update the gallery with remaining segments
+    gallery = [[(ann['mask'] * 255).astype(np.uint8), f"Segment {ann['segment_id']}"] for ann in session['annotations']]
+    
+    return f"Deleted segment {segment_id}.", session, gallery
+
 # Finalize and reset entire session, update history, write segments+points
 def finalize_and_reset(rgb_dir, ann_dir, session, history):
     if session['id'] is None or not session['annotations']:
