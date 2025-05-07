@@ -174,6 +174,9 @@ def build_ui(rgb_save_path, annotation_save_path):
                     mask1 = gr.Image(label="Mask 1", type="numpy")
                     mask2 = gr.Image(label="Mask 2", type="numpy")
                     mask3 = gr.Image(label="Mask 3", type="numpy")
+                with gr.Row():
+                    segment_id_input = gr.Number(label="Segment ID to Delete", precision=0)
+                    delete_button = gr.Button("Delete Segment")
                 status = gr.Textbox(label="Status", interactive=False)
                 saved_gallery = gr.Gallery(label="Saved Masks", columns=4)
                 finalize_button = gr.Button("Finalize & Reset")
@@ -195,6 +198,11 @@ def build_ui(rgb_save_path, annotation_save_path):
             fn=finalize_and_reset,
             inputs=[rgb_dir, ann_dir, session, history_state],
             outputs=[status, image_input, mask1, mask2, mask3, saved_gallery, session, history_state, session_gallery]
+        )
+        delete_button.click(
+            fn=delete_segment,
+            inputs=[segment_id_input, session],
+            outputs=[status, session, saved_gallery]
         )
         return demo
 
