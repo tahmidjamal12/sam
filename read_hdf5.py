@@ -279,6 +279,130 @@ def process_all_images():
                     read_hdf5_file(file_path)
                     input("Press Enter to continue to the next image...")
 
+def create_individual_segments_visualization(image_path, segments, image_id):
+    """
+    Create a visualization showing individual segments for an image.
+    
+    Args:
+        image_path (str): Path to the original image
+        segments (dict): Dictionary of segment arrays
+        image_id (str): ID of the image
+    """
+    # Read the original image
+    img = np.array(Image.open(image_path))
+    
+    # Calculate grid dimensions
+    n_segments = len(segments)
+    n_cols = min(3, n_segments)  # Maximum 3 columns
+    n_rows = (n_segments + n_cols - 1) // n_cols  # Ceiling division
+    
+    # Create figure
+    fig = plt.figure(figsize=(15, 5 * n_rows))
+    
+    # Add title
+    plt.suptitle(f'Individual Segments for Image {image_id}', fontsize=16, y=0.95)
+    
+    # Plot each segment
+    for i, (segment_id, segment) in enumerate(segments.items()):
+        plt.subplot(n_rows, n_cols, i + 1)
+        # Show original image
+        plt.imshow(img)
+        # Overlay segment contour
+        plt.contour(segment, colors='red', linewidths=2, alpha=0.7)
+        plt.title(f'Segment {segment_id}')
+        plt.axis('off')
+    
+    # Remove any empty subplots
+    for j in range(n_segments, n_rows * n_cols):
+        fig.delaxes(plt.subplot(n_rows, n_cols, j + 1))
+    
+    plt.tight_layout()
+    return fig
+
+def save_individual_segments_to_pdf():
+    """
+    Process all images and save their individual segment visualizations to a PDF file.
+    """
+    # Create PDF file
+    pdf_path = "individual_segments.pdf"
+    with PdfPages(pdf_path) as pdf:
+        # Process main directory
+        if os.path.exists("annotations"):
+            for file in os.listdir("annotations"):
+                if file.endswith("_annotation.hdf5"):
+                    image_id = file.split('_')[0]
+                    file_path = os.path.join("annotations", file)
+                    
+                    # Try to find the image in different possible locations
+                    possible_image_paths = [
+                        f"rgb_images/{image_id}_rgb.png",
+                        f"rgb_images/Easy/{image_id}_rgb.png",
+                        f"rgb_images/Medium/{image_id}_rgb.png",
+                        f"rgb_images/Hard/{image_id}_rgb.png"
+                    ]
+                    
+                    image_path = None
+                    for path in possible_image_paths:
+                        if os.path.exists(path):
+                            image_path = path
+                            break
+                    
+                    if image_path is None:
+                        print(f"Warning: Could not find image for {image_id}")
+                        continue
+                    
+                    # Read segments from HDF5 file
+                    with h5py.File(file_path, 'r') as f:
+                        segments = {}
+                        for key in f['segments'].keys():
+                            segments[key] = f[f'segments/{key}'][:]
+                        
+                        # Create and save visualization
+                        fig = create_individual_segments_visualization(image_path, segments, image_id)
+                        pdf.savefig(fig)
+                        plt.close(fig)
+        
+        # Process subdirectories
+        subdirs = ["Easy", "Medium", "Hard"]
+        for subdir in subdirs:
+            annotations_dir = os.path.join("annotations", subdir)
+            if os.path.exists(annotations_dir):
+                for file in os.listdir(annotations_dir):
+                    if file.endswith("_annotation.hdf5"):
+                        image_id = file.split('_')[0]
+                        file_path = os.path.join(annotations_dir, file)
+                        
+                        # Try to find the image in different possible locations
+                        possible_image_paths = [
+                            f"rgb_images/{image_id}_rgb.png",
+                            f"rgb_images/Easy/{image_id}_rgb.png",
+                            f"rgb_images/Medium/{image_id}_rgb.png",
+                            f"rgb_images/Hard/{image_id}_rgb.png"
+                        ]
+                        
+                        image_path = None
+                        for path in possible_image_paths:
+                            if os.path.exists(path):
+                                image_path = path
+                                break
+                        
+                        if image_path is None:
+                            print(f"Warning: Could not find image for {image_id}")
+                            continue
+                        
+                        # Read segments from HDF5 file
+                        with h5py.File(file_path, 'r') as f:
+                            segments = {}
+                            for key in f['segments'].keys():
+                                segments[key] = f[f'segments/{key}'][:]
+                            
+                            # Create and save visualization
+                            fig = create_individual_segments_visualization(image_path, segments, image_id)
+                            pdf.savefig(fig)
+                            plt.close(fig)
+    
+    print(f"\nIndividual segment visualizations have been saved to {pdf_path}")
+
 # Example usage
 if __name__ == "__main__":
     # Count images first
@@ -288,10 +412,13 @@ if __name__ == "__main__":
     print("\nWhat would you like to do?")
     print("1. View images with segments")
     print("2. Create PDF with contour visualizations")
-    print("3. Both")
-    choice = input("Enter your choice (1/2/3): ")
+    print("3. Create PDF with individual segment visualizations")
+    print("4. All of the above")
+    choice = input("Enter your choice (1/2/3/4): ")
     
-    if choice in ['1', '3']:
+    if choice in ['1', '4']:
         process_all_images()
-    if choice in ['2', '3']:
-        save_all_contours_to_pdf() 
+    if choice in ['2', '4']:
+        save_all_contours_to_pdf()
+    if choice in ['3', '4']:
+        save_individual_segments_to_pdf() 
