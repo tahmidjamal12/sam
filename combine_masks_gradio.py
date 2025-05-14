@@ -3,6 +3,7 @@ import numpy as np
 import h5py
 import gradio as gr
 from PIL import Image
+import re
 
 def init_session():
     return {
@@ -30,7 +31,7 @@ def load_annotation(image_path, annotation_path, session):
             if 'segments' in hf:
                 for key in hf['segments'].keys():
                     mask = hf[f'segments/{key}'][:]
-                    masks.append(((mask * 255).astype(np.uint8), f"Segment {key}"))
+                    masks.append(((mask * 255).astype(np.uint8), key))
         
         session['masks'] = masks
         return session['image'], f"Loaded {len(masks)} segments for image {session['id']}", session, masks
@@ -62,23 +63,21 @@ def save_combined_mask(annotation_dir, difficulty, session):
         return "No combined mask to save."
     
     try:
-        # Use the difficulty from the UI
         save_dir = os.path.join(annotation_dir, difficulty)
         os.makedirs(save_dir, exist_ok=True)
         h5_path = os.path.join(save_dir, f"{session['id']}_annotation.hdf5")
         
-        # Open the annotation file and add the combined mask
         with h5py.File(h5_path, 'a') as hf:
             if 'segments' not in hf:
                 seg_grp = hf.create_group('segments')
             else:
                 seg_grp = hf['segments']
-            # Use the next available integer as the segment id
-            seg_id = len([k for k in seg_grp.keys() if k.startswith('Segment ') and k.split(' ')[1].isdigit()])
-            new_name = f'Segment {seg_id}'
-            seg_grp.create_dataset(new_name, data=session['combined_mask'])
+            existing_segments = list(seg_grp.keys())
+            new_segment_name = str(len(existing_segments))
+            seg_grp.create_dataset(new_segment_name, data=session['combined_mask'])
+            after_count = len(seg_grp.keys())
         
-        return f"Saved combined mask as '{new_name}' in {h5_path}"
+        return f"Saved combined mask as '{new_segment_name}' in {h5_path}. Segments before: {len(existing_segments)}, after: {after_count}"
     
     except Exception as e:
         return f"Error saving combined mask: {str(e)}"
