@@ -72,8 +72,11 @@ def save_combined_mask(annotation_dir, difficulty, session):
                 seg_grp = hf.create_group('segments')
             else:
                 seg_grp = hf['segments']
-            existing_segments = list(seg_grp.keys())
-            new_segment_name = str(len(existing_segments))
+            existing_segments = set(seg_grp.keys())
+            i = 0
+            while str(i) in existing_segments:
+                i += 1
+            new_segment_name = str(i)
             seg_grp.create_dataset(new_segment_name, data=session['combined_mask'])
             after_count = len(seg_grp.keys())
         
@@ -81,6 +84,26 @@ def save_combined_mask(annotation_dir, difficulty, session):
     
     except Exception as e:
         return f"Error saving combined mask: {str(e)}"
+
+def delete_segment(annotation_dir, difficulty, image_id, segment_number):
+    try:
+        h5_path = os.path.join(annotation_dir, difficulty, f"{image_id}_annotation.hdf5")
+        with h5py.File(h5_path, 'a') as hf:
+            if 'segments' not in hf:
+                return None, f"No segments found in {h5_path}"
+            seg_grp = hf['segments']
+            seg_name = str(int(segment_number))
+            if seg_name not in seg_grp:
+                return None, f"Segment {seg_name} not found."
+            del seg_grp[seg_name]
+            # Prepare updated gallery
+            masks = []
+            for key in seg_grp.keys():
+                mask = seg_grp[key][:]
+                masks.append(((mask * 255).astype(np.uint8), key))
+        return masks, f"Deleted segment {seg_name} from {h5_path}"
+    except Exception as e:
+        return None, f"Error deleting segment: {str(e)}"
 
 def build_ui(rgb_dir, annotation_dir):
     with gr.Blocks(title="Mask Combination Tool") as demo:
@@ -113,6 +136,8 @@ def build_ui(rgb_dir, annotation_dir):
                 current_difficulty = gr.Textbox(label="Difficulty (auto-filled)", interactive=False)
                 load_button = gr.Button("Load Image and Masks")
                 image_display = gr.Image(label="Image", type="numpy")
+                delete_number = gr.Number(label="Segment Number to Delete", precision=0)
+                delete_button = gr.Button("Delete Segment")
             
             with gr.Column():
                 mask1_number = gr.Number(label="First Mask Number (e.g. 0)", precision=0)
@@ -179,6 +204,12 @@ def build_ui(rgb_dir, annotation_dir):
             fn=save_combined_mask,
             inputs=[gr.State(annotation_dir), current_difficulty, session],
             outputs=[status]
+        )
+        
+        delete_button.click(
+            fn=delete_segment,
+            inputs=[gr.State(annotation_dir), current_difficulty, image_id, delete_number],
+            outputs=[mask_gallery, status]
         )
         
         return demo
