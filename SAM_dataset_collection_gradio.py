@@ -9,6 +9,7 @@ from segment_anything import sam_model_registry, SamPredictor
 import argparse
 import requests
 from tqdm import tqdm
+from process import crop_image 
 
 # Session initializer
 def init_session():
@@ -32,8 +33,9 @@ def init_display(img, session):
         return None, session
     session = init_session()
     session['id'] = generate_id()
-    session['image'] = img
-    session['image_copy'] = img.copy()
+    cropped_img = crop_image(img)  # Apply crop
+    session['image'] = cropped_img
+    session['image_copy'] = cropped_img.copy()
     return session['image_copy'], session
 
 # Add a clicked point and redraw with size relative to image dims
